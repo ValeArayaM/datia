@@ -58,7 +58,7 @@ RESULTADOS_SERVEL = {
     }
 }
 
-ELECCIONES = list(RESULTADOS_SERVEL.keys()) + [2025, "Golpe de Estado 1973"]
+ELECCIONES = list(RESULTADOS_SERVEL.keys()) + [2025, "1973 (Golpe de Estado)"]
 
 # ------------------------------------------------------------------
 # FUNCIÓN AUXILIAR: PROMPT PARA VERIFICADOR
@@ -121,7 +121,7 @@ with tabs[1]:
     if st.button("Consultar resultados"):
         if seleccion == 2025:
             st.warning("🗳️ Las elecciones presidenciales de 2025 aún no se han realizado. Están programadas para el domingo 16 de noviembre de 2025 (fuente: Servel).")
-        elif seleccion == "Golpe de Estado 1973":
+        elif seleccion == "1973 (Golpe de Estado)":
             st.write("📜 **Golpe de Estado en Chile (11 de septiembre de 1973)**")
         else:
             st.write(f"📊 **Resultados oficiales Elección Presidencial {seleccion}:**")
