@@ -11,6 +11,7 @@ st.set_page_config(page_title="DATIA", page_icon="🧠", layout="wide")
 st.markdown("<h1 style='text-align: center; color: #1565C0;'>🧠 DATIA</h1>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center; color: #555;'>Periodismo Inteligente, Información Verificada</h4>", unsafe_allow_html=True)
 
+# Datos candidatos
 CANDIDATOS = {
     "Gabriel Boric": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Gabriel_Boric_portrait_2022.jpg/440px-Gabriel_Boric_portrait_2022.jpg",
     "José Antonio Kast": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Jos%C3%A9_Antonio_Kast_2020.jpg/440px-Jos%C3%A9_Antonio_Kast_2020.jpg",
@@ -42,18 +43,18 @@ Devuelve SOLO un JSON válido con los campos:
 - fuentes: lista de 2 a 5 URLs oficiales o de medios confiables.
 """
 
-# Obtener el token seguro de Streamlit Secrets
+# Token Hugging Face desde secrets de Streamlit
 HF_TOKEN = st.secrets["HF_TOKEN"]
 
 def llamar_hf_chat(prompt: str) -> str:
-    API_URL = "https://api-inference.huggingface.co/models/gpt2"
+    API_URL = "https://api-inference.huggingface.co/models/distilgpt2"
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
         "Accept": "application/json"
     }
     payload = {
         "inputs": prompt,
-        "parameters": {"max_new_tokens": 500, "temperature": 0.2},
+        "parameters": {"max_new_tokens": 200, "temperature": 0.2},
         "options": {"wait_for_model": True}
     }
     response = requests.post(API_URL, headers=headers, json=payload)
@@ -66,8 +67,10 @@ def llamar_hf_chat(prompt: str) -> str:
     else:
         return f"Error Hugging Face API: {response.status_code} {response.text}"
 
+# Pestañas de la app
 tabs = st.tabs(["✅ Verificador DATIA", "📜 Consulta Histórica", "👤 Perfiles", "📊 Simulación"])
 
+# TAB 1: Verificador con Hugging Face
 with tabs[0]:
     st.subheader("✅ Verificación de declaraciones")
     afirmacion = st.text_input("Escribe la afirmación que deseas verificar:")
@@ -80,6 +83,7 @@ with tabs[0]:
                 respuesta = llamar_hf_chat(prompt)
                 st.code(respuesta, language="json")
 
+# TAB 2: Consulta histórica
 with tabs[1]:
     st.subheader("📜 Consulta histórica de elecciones en Chile")
     q = st.text_input("Pregunta (ej: 'resultados 2021', 'qué pasa con 2025'):", key="histq")
@@ -95,6 +99,7 @@ with tabs[1]:
         else:
             st.info("Por ahora DATIA entrega datos históricos de la elección presidencial 2021 y el estado programado de la elección 2025.")
 
+# TAB 3: Perfiles candidatos
 with tabs[2]:
     st.subheader("👤 Perfiles oficiales de figuras políticas")
     cand = st.selectbox("Selecciona un candidato:", list(CANDIDATOS.keys()))
@@ -103,6 +108,7 @@ with tabs[2]:
         st.write(f"**Nombre:** {cand}")
         st.write("**Perfil oficial:** (Agrega aquí información verificada de fuentes oficiales).")
 
+# TAB 4: Simulación de resultados
 with tabs[3]:
     st.subheader("📊 Simulación en tiempo real (DEMO)")
     st.write("Simula un conteo de mesas escrutadas para demostración. No representa datos reales.")
