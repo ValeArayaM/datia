@@ -58,7 +58,19 @@ RESULTADOS_SERVEL = {
     }
 }
 
-ELECCIONES = list(RESULTADOS_SERVEL.keys()) + [2025, "1973 (Golpe de Estado)"]
+ELECCIONES = [
+    1970,
+    "1973 (Golpe de Estado)",
+    1989,
+    1993,
+    1999,
+    2005,
+    2009,
+    2013,
+    2017,
+    2021,
+    2025,
+]
 
 # ------------------------------------------------------------------
 # FUNCIÓN AUXILIAR: PROMPT PARA VERIFICADOR
