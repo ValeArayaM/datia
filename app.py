@@ -1,6 +1,4 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
 from openai import OpenAI
 
 # ------------------------------------------------------------------
@@ -8,12 +6,59 @@ from openai import OpenAI
 # ------------------------------------------------------------------
 st.set_page_config(page_title="DATIA", page_icon="🧠", layout="wide")
 
-# Branding (título + eslogan)
+# Branding
 st.markdown("<h1 style='text-align: center; color: #1565C0;'>🧠 DATIA</h1>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center; color: #555;'>Periodismo Inteligente, Información Verificada</h4>", unsafe_allow_html=True)
 
 # Inicializar cliente OpenAI
 client = OpenAI()
+
+# ------------------------------------------------------------------
+# DATOS HISTÓRICOS SERVEL (1970–2021)
+# ------------------------------------------------------------------
+RESULTADOS_SERVEL = {
+    1970: {
+        "Salvador Allende": "36.61%",
+        "Jorge Alessandri": "35.27%",
+        "Radomiro Tomic": "28.11%"
+    },
+    1989: {
+        "Patricio Aylwin": "55.17%",
+        "Hernán Büchi": "29.40%",
+        "Francisco Javier Errázuriz": "15.43%"
+    },
+    1993: {
+        "Eduardo Frei Ruiz-Tagle": "57.98%",
+        "Arturo Alessandri": "24.40%",
+        "José Piñera": "6.18%"
+    },
+    1999: {
+        "Ricardo Lagos": "51.31%",
+        "Joaquín Lavín": "48.69%"
+    },
+    2005: {
+        "Michelle Bachelet": "53.50%",
+        "Sebastián Piñera": "46.50%"
+    },
+    2009: {
+        "Sebastián Piñera": "51.61%",
+        "Eduardo Frei Ruiz-Tagle": "48.39%"
+    },
+    2013: {
+        "Michelle Bachelet": "62.16%",
+        "Evelyn Matthei": "37.83%"
+    },
+    2017: {
+        "Sebastián Piñera": "54.57%",
+        "Alejandro Guillier": "45.43%"
+    },
+    2021: {
+        "Gabriel Boric": "55.87%",
+        "José Antonio Kast": "44.13%"
+    }
+}
+
+ELECCIONES = list(RESULTADOS_SERVEL.keys()) + [2025]
 
 # ------------------------------------------------------------------
 # FUNCIÓN AUXILIAR: PROMPT PARA VERIFICADOR
@@ -36,37 +81,6 @@ Devuelve SOLO un JSON válido con los campos:
 - explicacion: breve (máx 80 palabras), clara y neutral periodísticamente.
 - fuentes: lista de 2 a 5 URLs oficiales o de medios confiables.
 """
-
-# ------------------------------------------------------------------
-# FUNCIÓN PARA OBTENER RESULTADOS DE ELECCIONES (Wikipedia)
-# ------------------------------------------------------------------
-def obtener_resultados_eleccion(anio: int) -> dict:
-    url = f"https://es.wikipedia.org/wiki/Elecci%C3%B3n_presidencial_de_Chile_de_{anio}"
-    resp = requests.get(url)
-    if resp.status_code != 200:
-        return {"error": "No se pudo acceder a la página de Wikipedia."}
-    
-    soup = BeautifulSoup(resp.text, "html.parser")
-    
-    # Buscar tabla con resultados
-    tablas = soup.find_all("table", {"class": "wikitable"})
-    resultados = {}
-    
-    for tabla in tablas:
-        filas = tabla.find_all("tr")
-        for fila in filas:
-            celdas = fila.find_all(["th", "td"])
-            if len(celdas) >= 3:
-                candidato = celdas[0].get_text(strip=True)
-                porcentaje = celdas[-1].get_text(strip=True)
-                if "%" in porcentaje:  # Filtrar filas con porcentaje
-                    resultados[candidato] = porcentaje
-    return resultados
-
-# ------------------------------------------------------------------
-# LISTA DE ELECCIONES
-# ------------------------------------------------------------------
-ELECCIONES = [1970, 1989, 1993, 1999, 2005, 2009, 2013, 2017, 2021, 2025]
 
 # ------------------------------------------------------------------
 # PESTAÑAS DE LA APP
@@ -98,7 +112,7 @@ with tabs[0]:
                 st.error(f"Error al llamar a OpenAI: {e}")
 
 # ------------------------------------------------------------------
-# TAB 2: CONSULTA HISTÓRICA
+# TAB 2: CONSULTA HISTÓRICA (SERVEL)
 # ------------------------------------------------------------------
 with tabs[1]:
     st.subheader("📜 Consulta histórica de elecciones presidenciales en Chile")
@@ -108,12 +122,8 @@ with tabs[1]:
         if anio == 2025:
             st.warning("🗳️ Las elecciones presidenciales de 2025 aún no se han realizado. Están programadas para el domingo 16 de noviembre de 2025 (fuente: Servel).")
         else:
-            with st.spinner(f"Obteniendo resultados oficiales de {anio}..."):
-                datos = obtener_resultados_eleccion(anio)
-                if "error" in datos:
-                    st.error(datos["error"])
-                else:
-                    st.write(f"📊 **Resultados oficiales Elección Presidencial {anio}:**")
-                    for candidato, porcentaje in datos.items():
-                        st.write(f"- {candidato}: **{porcentaje}**")
-                    st.caption(f"Fuente: Wikipedia (basado en datos del Servel). [Ver página oficial](https://es.wikipedia.org/wiki/Elección_presidencial_de_Chile_de_{anio})")
+            st.write(f"📊 **Resultados oficiales Elección Presidencial {anio}:**")
+            resultados = RESULTADOS_SERVEL[anio]
+            for candidato, porcentaje in resultados.items():
+                st.write(f"- {candidato}: **{porcentaje}**")
+            st.caption("Fuente: Servicio Electoral de Chile (Servel). [Ir al sitio oficial](https://www.servel.cl/)")
