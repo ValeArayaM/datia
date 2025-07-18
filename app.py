@@ -43,7 +43,7 @@ Devuelve SOLO un JSON válido con los campos:
 HF_TOKEN = st.secrets["HF_TOKEN"]
 
 def llamar_hf_chat(prompt: str) -> str:
-    API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-small"
+    API_URL = "https://api-inference.huggingface.co/models/distilgpt2"
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
         "Accept": "application/json"
