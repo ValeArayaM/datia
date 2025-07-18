@@ -1,6 +1,6 @@
 import streamlit as st
-import time
-import random
+import requests
+from bs4 import BeautifulSoup
 from openai import OpenAI
 
 # ------------------------------------------------------------------
@@ -16,25 +16,7 @@ st.markdown("<h4 style='text-align: center; color: #555;'>Periodismo Inteligente
 client = OpenAI()
 
 # ------------------------------------------------------------------
-# DATOS DE CANDIDATOS (FOTOS OFICIALES / LICENCIAS ABIERTAS)
-# ------------------------------------------------------------------
-CANDIDATOS = {
-    "Gabriel Boric": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Gabriel_Boric_portrait_2022.jpg/440px-Gabriel_Boric_portrait_2022.jpg",
-    "José Antonio Kast": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Jos%C3%A9_Antonio_Kast_2020.jpg/440px-Jos%C3%A9_Antonio_Kast_2020.jpg",
-    "Yasna Provoste": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Yasna_Provoste_2018.jpg/440px-Yasna_Provoste_2018.jpg",
-    "Franco Parisi": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Franco_Parisi_2021.jpg/440px-Franco_Parisi_2021.jpg",
-}
-
-# ------------------------------------------------------------------
-# RESULTADOS HISTÓRICOS (ELECCIÓN PRESIDENCIAL CHILE 2021 - SEGUNDA VUELTA)
-# ------------------------------------------------------------------
-RESULTADOS_2021 = {
-    "Gabriel Boric": {"porcentaje": 55.87, "votos": 4621231},
-    "José Antonio Kast": {"porcentaje": 44.14, "votos": 3650662},
-}
-
-# ------------------------------------------------------------------
-# FUNCIÓN AUXILIAR: GENERAR PROMPT VERIFICADOR
+# FUNCIÓN AUXILIAR: PROMPT PARA VERIFICADOR
 # ------------------------------------------------------------------
 def build_verifier_prompt(afirmacion: str) -> str:
     return f"""
@@ -56,12 +38,43 @@ Devuelve SOLO un JSON válido con los campos:
 """
 
 # ------------------------------------------------------------------
-# TABLAS / PESTAÑAS DE LA APP
+# FUNCIÓN PARA OBTENER RESULTADOS DE ELECCIONES (Wikipedia)
 # ------------------------------------------------------------------
-tabs = st.tabs(["✅ Verificador DATIA", "📜 Consulta Histórica", "👤 Perfiles", "📊 Simulación"])
+def obtener_resultados_eleccion(anio: int) -> dict:
+    url = f"https://es.wikipedia.org/wiki/Elecci%C3%B3n_presidencial_de_Chile_de_{anio}"
+    resp = requests.get(url)
+    if resp.status_code != 200:
+        return {"error": "No se pudo acceder a la página de Wikipedia."}
+    
+    soup = BeautifulSoup(resp.text, "html.parser")
+    
+    # Buscar tabla con resultados
+    tablas = soup.find_all("table", {"class": "wikitable"})
+    resultados = {}
+    
+    for tabla in tablas:
+        filas = tabla.find_all("tr")
+        for fila in filas:
+            celdas = fila.find_all(["th", "td"])
+            if len(celdas) >= 3:
+                candidato = celdas[0].get_text(strip=True)
+                porcentaje = celdas[-1].get_text(strip=True)
+                if "%" in porcentaje:  # Filtrar filas con porcentaje
+                    resultados[candidato] = porcentaje
+    return resultados
 
 # ------------------------------------------------------------------
-# TAB 1: VERIFICADOR DE HECHOS (OPENAI)
+# LISTA DE ELECCIONES
+# ------------------------------------------------------------------
+ELECCIONES = [1970, 1989, 1993, 1999, 2005, 2009, 2013, 2017, 2021, 2025]
+
+# ------------------------------------------------------------------
+# PESTAÑAS DE LA APP
+# ------------------------------------------------------------------
+tabs = st.tabs(["✅ Verificador DATIA", "📜 Consulta Histórica"])
+
+# ------------------------------------------------------------------
+# TAB 1: VERIFICADOR
 # ------------------------------------------------------------------
 with tabs[0]:
     st.subheader("✅ Verificación de declaraciones")
@@ -88,55 +101,19 @@ with tabs[0]:
 # TAB 2: CONSULTA HISTÓRICA
 # ------------------------------------------------------------------
 with tabs[1]:
-    st.subheader("📜 Consulta histórica de elecciones en Chile")
-    q = st.text_input("Pregunta (ej: 'resultados 2021', 'qué pasa con 2025'):", key="histq")
-    if st.button("Consultar historia", key="histq_btn"):
-        qlow = q.lower()
-        if "2025" in qlow:
+    st.subheader("📜 Consulta histórica de elecciones presidenciales en Chile")
+    anio = st.selectbox("Selecciona el año de la elección:", ELECCIONES)
+
+    if st.button("Consultar resultados"):
+        if anio == 2025:
             st.warning("🗳️ Las elecciones presidenciales de 2025 aún no se han realizado. Están programadas para el domingo 16 de noviembre de 2025 (fuente: Servel).")
-        elif "2021" in qlow or "última" in qlow or "ultima" in qlow:
-            st.write("📊 **Resultados oficiales Elección Presidencial 2021 (Segunda vuelta - 19 diciembre 2021):**")
-            for c, data in RESULTADOS_2021.items():
-                st.write(f"- {c}: **{data['porcentaje']}%** ({data['votos']:,} votos)")
-            st.caption("Fuente: Servicio Electoral de Chile (Servel) / Biblioteca del Congreso Nacional (BCN).")
         else:
-            st.info("Por ahora DATIA entrega datos históricos de la elección presidencial 2021 y el estado programado de la elección 2025.")
-
-# ------------------------------------------------------------------
-# TAB 3: PERFILES DE CANDIDATOS
-# ------------------------------------------------------------------
-with tabs[2]:
-    st.subheader("👤 Perfiles oficiales de figuras políticas")
-    cand = st.selectbox("Selecciona un candidato:", list(CANDIDATOS.keys()))
-    if cand:
-        st.image(CANDIDATOS[cand], width=250)
-        st.write(f"**Nombre:** {cand}")
-        st.write("**Perfil oficial:** (Agrega aquí información verificada de fuentes oficiales).")
-
-# ------------------------------------------------------------------
-# TAB 4: SIMULACIÓN DE RESULTADOS EN TIEMPO REAL (DEMO VISUAL)
-# ------------------------------------------------------------------
-with tabs[3]:
-    st.subheader("📊 Simulación en tiempo real (DEMO)")
-    st.write("Simula un conteo de mesas escrutadas para demostración. No representa datos reales.")
-    candidatos = list(CANDIDATOS.keys())
-    votos = {c: 0 for c in candidatos}
-    total_mesas = 5000
-    mesas_contadas = 0
-    placeholder = st.empty()
-    if st.button("Iniciar simulación"):
-        while mesas_contadas < total_mesas:
-            mesas_contadas += 200
-            if mesas_contadas > total_mesas:
-                mesas_contadas = total_mesas
-            for c in candidatos:
-                votos[c] += random.randint(2000, 7000)
-            total_votos = sum(votos.values())
-            porcentajes = {c: (v / total_votos) * 100 for c, v in votos.items()}
-            with placeholder.container():
-                st.metric("Mesas escrutadas", f"{mesas_contadas}/{total_mesas}", f"{(mesas_contadas/total_mesas)*100:.2f}%")
-                st.bar_chart(porcentajes)
-                for c, p in sorted(porcentajes.items(), key=lambda x: x[1], reverse=True):
-                    st.write(f"{c}: **{p:.2f}%** ({votos[c]:,} votos)")
-            time.sleep(0.75)
-        st.success("Conteo simulado finalizado ✅")
+            with st.spinner(f"Obteniendo resultados oficiales de {anio}..."):
+                datos = obtener_resultados_eleccion(anio)
+                if "error" in datos:
+                    st.error(datos["error"])
+                else:
+                    st.write(f"📊 **Resultados oficiales Elección Presidencial {anio}:**")
+                    for candidato, porcentaje in datos.items():
+                        st.write(f"- {candidato}: **{porcentaje}**")
+                    st.caption(f"Fuente: Wikipedia (basado en datos del Servel). [Ver página oficial](https://es.wikipedia.org/wiki/Elección_presidencial_de_Chile_de_{anio})")
