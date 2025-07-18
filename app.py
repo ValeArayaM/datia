@@ -58,7 +58,7 @@ RESULTADOS_SERVEL = {
     }
 }
 
-ELECCIONES = list(RESULTADOS_SERVEL.keys()) + [2025]
+ELECCIONES = list(RESULTADOS_SERVEL.keys()) + [2025, "Golpe de Estado 1973"]
 
 # ------------------------------------------------------------------
 # FUNCIÓN AUXILIAR: PROMPT PARA VERIFICADOR
@@ -116,14 +116,16 @@ with tabs[0]:
 # ------------------------------------------------------------------
 with tabs[1]:
     st.subheader("📜 Consulta histórica de elecciones presidenciales en Chile")
-    anio = st.selectbox("Selecciona el año de la elección:", ELECCIONES)
+    seleccion = st.selectbox("Selecciona el evento:", ELECCIONES)
 
     if st.button("Consultar resultados"):
-        if anio == 2025:
+        if seleccion == 2025:
             st.warning("🗳️ Las elecciones presidenciales de 2025 aún no se han realizado. Están programadas para el domingo 16 de noviembre de 2025 (fuente: Servel).")
+        elif seleccion == "Golpe de Estado 1973":
+            st.write("📜 **Golpe de Estado en Chile (11 de septiembre de 1973)**")
         else:
-            st.write(f"📊 **Resultados oficiales Elección Presidencial {anio}:**")
-            resultados = RESULTADOS_SERVEL[anio]
+            st.write(f"📊 **Resultados oficiales Elección Presidencial {seleccion}:**")
+            resultados = RESULTADOS_SERVEL[seleccion]
             for candidato, porcentaje in resultados.items():
                 st.write(f"- {candidato}: **{porcentaje}**")
             st.caption("Fuente: Servicio Electoral de Chile (Servel). [Ir al sitio oficial](https://www.servel.cl/)")
