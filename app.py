@@ -40,4 +40,87 @@ Devuelve SOLO un JSON válido con los campos:
 - fuentes: lista de 2 a 5 URLs oficiales o de medios confiables.
 """
 
-HF_TOKEN = st.secrets["HF_TOKEN"_]()_
+HF_TOKEN = st.secrets["HF_TOKEN"]
+
+def llamar_hf_chat(prompt: str) -> str:
+    API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-small"
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Accept": "application/json"
+    }
+    payload = {
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": 200, "temperature": 0.7},
+        "options": {"wait_for_model": True}
+    }
+    response = requests.post(API_URL, headers=headers, json=payload)
+    if response.status_code == 200:
+        data = response.json()
+        if isinstance(data, list) and "generated_text" in data[0]:
+            return data[0]["generated_text"]
+        else:
+            return str(data)
+    else:
+        return f"Error Hugging Face API: {response.status_code} {response.text}"
+
+tabs = st.tabs(["✅ Verificador DATIA", "📜 Consulta Histórica", "👤 Perfiles", "📊 Simulación"])
+
+with tabs[0]:
+    st.subheader("✅ Verificación de declaraciones")
+    afirmacion = st.text_input("Escribe la afirmación que deseas verificar:")
+    if st.button("Verificar con DATIA"):
+        if not afirmacion.strip():
+            st.warning("Por favor, ingresa una afirmación.")
+        else:
+            with st.spinner("DATIA verificando fuentes oficiales con Hugging Face..."):
+                prompt = build_verifier_prompt(afirmacion)
+                respuesta = llamar_hf_chat(prompt)
+                st.code(respuesta, language="json")
+
+with tabs[1]:
+    st.subheader("📜 Consulta histórica de elecciones en Chile")
+    q = st.text_input("Pregunta (ej: 'resultados 2021', 'qué pasa con 2025'):", key="histq")
+    if st.button("Consultar historia", key="histq_btn"):
+        qlow = q.lower()
+        if "2025" in qlow:
+            st.warning("🗳️ Las elecciones presidenciales de 2025 aún no se han realizado. Están programadas para el domingo 16 de noviembre de 2025 (fuente: Servel).")
+        elif "2021" in qlow or "última" in qlow or "ultima" in qlow:
+            st.write("📊 **Resultados oficiales Elección Presidencial 2021 (Segunda vuelta - 19 diciembre 2021):**")
+            for c, data in RESULTADOS_2021.items():
+                st.write(f"- {c}: **{data['porcentaje']}%** ({data['votos']:,} votos)")
+            st.caption("Fuente: Servicio Electoral de Chile (Servel) / Biblioteca del Congreso Nacional (BCN).")
+        else:
+            st.info("Por ahora DATIA entrega datos históricos de la elección presidencial 2021 y el estado programado de la elección 2025.")
+
+with tabs[2]:
+    st.subheader("👤 Perfiles oficiales de figuras políticas")
+    cand = st.selectbox("Selecciona un candidato:", list(CANDIDATOS.keys()))
+    if cand:
+        st.image(CANDIDATOS[cand], width=250)
+        st.write(f"**Nombre:** {cand}")
+        st.write("**Perfil oficial:** (Agrega aquí información verificada de fuentes oficiales).")
+
+with tabs[3]:
+    st.subheader("📊 Simulación en tiempo real (DEMO)")
+    st.write("Simula un conteo de mesas escrutadas para demostración. No representa datos reales.")
+    candidatos = list(CANDIDATOS.keys())
+    votos = {c: 0 for c in candidatos}
+    total_mesas = 5000
+    mesas_contadas = 0
+    placeholder = st.empty()
+    if st.button("Iniciar simulación"):
+        while mesas_contadas < total_mesas:
+            mesas_contadas += 200
+            if mesas_contadas > total_mesas:
+                mesas_contadas = total_mesas
+            for c in candidatos:
+                votos[c] += random.randint(2000, 7000)
+            total_votos = sum(votos.values())
+            porcentajes = {c: (v / total_votos) * 100 for c, v in votos.items()}
+            with placeholder.container():
+                st.metric("Mesas escrutadas", f"{mesas_contadas}/{total_mesas}", f"{(mesas_contadas/total_mesas)*100:.2f}%")
+                st.bar_chart(porcentajes)
+                for c, p in sorted(porcentajes.items(), key=lambda x: x[1], reverse=True):
+                    st.write(f"{c}: **{p:.2f}%** ({votos[c]:,} votos)")
+            time.sleep(0.75)
+        st.success("Conteo simulado finalizado ✅")
